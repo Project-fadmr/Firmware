@@ -1,0 +1,8 @@
+[MESSAGES CONTROL]
+# short # comments instead of docstrings, f-strings in logs, numbered "Error 0X" exceptions
+disable =
+    missing-class-docstring,
+    missing-function-docstring,
+    logging-fstring-interpolation,
+    broad-exception-raised,
+    broad-exception-caught,

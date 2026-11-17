@@ -1,0 +1,3 @@
+[lint]
+# numbered "Error 0X" exceptions are raised and caught as plain Exception on purpose
+extend-ignore = ["TRY002", "BLE001"]
