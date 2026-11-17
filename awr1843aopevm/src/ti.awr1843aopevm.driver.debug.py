@@ -6,22 +6,23 @@ date: 17/11/2026
 """
 
 import argparse
-import os
-import subprocess
-import sys
-import serial
-import struct
-
 import asyncio
-import json
 import logging
-import random
-import time
+import os
+import struct
+import sys
+from pathlib import Path
 
-DATA_PORT = ("/dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_"
-                "019C69A2-if01-port0")
-CLI_PORT = ("/dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_"
-            "019C69A2-if00-port0")
+import serial
+
+DATA_PORT = (
+    "/dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_"
+    "019C69A2-if01-port0"
+)
+CLI_PORT = (
+    "/dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_"
+    "019C69A2-if00-port0"
+)
 DATA_BAUD = 921600
 CLI_BAUD = 115200
 SOCK = "/tmp/stream.sock"
@@ -60,21 +61,13 @@ RADAR_CFG = [
 MAGIC = b"\x02\x01\x04\x03\x06\x05\x08\x07"
 HEADER_LEN = 40
 
-PACKET_ALIGN = 32
-MAX_PACKET_LEN = 64 * 1024       
-MAX_TLVS = 32                    
+MAX_PACKET_LEN = 64 * 1024
 
-TLV_POINTS = 1                   
-TLV_SIDE_INFO = 7                
-
-CPU_HZ = 200e6
-CYCLE_MASK = 0xFFFFFFFF          
-
-IDLE_TIMEOUT_S = 1.0             
-READ_CHUNK = 65536
-FILE_CHUNK = 4096 
+IDLE_TIMEOUT_S = 1.0
+FILE_CHUNK = 4096
 
 log = logging.getLogger("Texas Instruments AWR1843AOPEVM Driver")
+
 
 class Radar:
     def __init__(self, cli_port, data_port):
@@ -85,24 +78,24 @@ class Radar:
         self.data_port = data_port
 
         try:
-            self.cli = serial.Serial(self.cli_port, CLI_BAUD, timeout = IDLE_TIMEOUT_S)
+            self.cli = serial.Serial(self.cli_port, CLI_BAUD, timeout=IDLE_TIMEOUT_S)
             log.info("Opened CLI")
         except Exception as e:
             log.critical(f"Failed to open CLI interface with exception {e}")
-            raise Exception("Error 02")
-        
+            raise Exception("Error 02") from e
+
         try:
-            self.data = serial.Serial(self.data_port, DATA_BAUD, timeout = IDLE_TIMEOUT_S)
+            self.data = serial.Serial(self.data_port, DATA_BAUD, timeout=IDLE_TIMEOUT_S)
             log.info("Opened DATA")
         except Exception as e:
             log.critical(f"Failed to open DATA interface with exception {e}")
             self.close()
-            raise Exception("Error 03")
-        
-        self.enabled = False 
+            raise Exception("Error 03") from e
+
+        self.enabled = False
 
     def _send(self, cmd):
-        for attempt in range(2):
+        for _ in range(2):
             self.cli.reset_input_buffer()
             self.cli.write(f"{cmd}\n".encode())
             reply = self.cli.read_until(b"mmwDemo:/>")
@@ -111,7 +104,7 @@ class Radar:
             if "Done" in text:
                 return
             if reply.endswith(b"mmwDemo:/>"):
-                break  
+                break
             log.warning(f"'{cmd}' timed out, retrying")
 
         log.critical(f"'{cmd}' failed, board replied: {text.strip()!r}")
@@ -154,7 +147,9 @@ class Radar:
 
         body = self.data.read(length - HEADER_LEN)
         if len(body) < length - HEADER_LEN:
-            log.warning("Timed out mid-frame (%d of %d bytes)", len(body), length - HEADER_LEN)
+            log.warning(
+                "Timed out mid-frame (%d of %d bytes)", len(body), length - HEADER_LEN
+            )
             return None
 
         return MAGIC + header + body
@@ -175,26 +170,25 @@ class Radar:
             log.info("reset successful")
         except Exception as e:
             log.critical(f"RESET FAILED! BOARD IS IN UNKNOWN STATE\n{e}")
-            raise Exception("Error 05")
+            raise Exception("Error 05") from e
 
     def close(self):
-        if self.cli != None:
+        if self.cli is not None:
             self.cli.close()
             self.cli = None
             log.info("closed CLI")
         else:
             log.info("CLI already closed")
-        if self.data != None:
+        if self.data is not None:
             self.data.close()
             self.data = None
             log.info("closed DATA")
         else:
             log.info("DATA already closed")
 
-        
 
 class Socket:
-    def __init__(self, path = SOCK, max_backlog = 4 * 1024 * 1024):
+    def __init__(self, path=SOCK, max_backlog=4 * 1024 * 1024):
         self.path = path
         self.max_backlog = max_backlog
         self.clients = set()
@@ -205,11 +199,11 @@ class Socket:
             log.debug("Removing stale socket %s", self.path)
             os.unlink(self.path)
         try:
-            self.server = await asyncio.start_unix_server(self.handle, path = self.path)
+            self.server = await asyncio.start_unix_server(self.handle, path=self.path)
             log.info("Listening on UNIX socket %s", self.path)
         except Exception as e:
             log.critical(f"Failed to create socket at {self.path} with exception {e}")
-            raise Exception('Error 01')
+            raise Exception("Error 01") from e
 
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         self.clients.add(writer)
@@ -218,7 +212,7 @@ class Socket:
             while await reader.read(FILE_CHUNK):
                 pass
         except ConnectionError:
-            log.error("Connection error on UNIX socket", exc_info = True)
+            log.exception("Connection error on UNIX socket")
         finally:
             self.clients.discard(writer)
             writer.close()
@@ -228,7 +222,9 @@ class Socket:
         for w in list(self.clients):
             if w.is_closing() or w.transport.get_write_buffer_size() > self.max_backlog:
                 if not w.is_closing():
-                    log.warning("Dropping slow client: backlog over %d bytes", self.max_backlog)
+                    log.warning(
+                        "Dropping slow client: backlog over %d bytes", self.max_backlog
+                    )
                 self.clients.discard(w)
                 w.close()
             else:
@@ -244,10 +240,13 @@ class Socket:
             os.unlink(self.path)
         log.info("UNIX socket %s closed", self.path)
 
+
 def main():
-    #control flow of the program
-    args = help()
-    logging.basicConfig(level = args.log_level, format = "%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # control flow of the program
+    args = parse_args()
+    logging.basicConfig(
+        level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     try:
         asyncio.run(run(args))
     except KeyboardInterrupt:
@@ -255,20 +254,19 @@ def main():
     except Exception as e:
         sys.exit(str(e))
 
+
 async def run(args):
-    #feeds the socket from the dummy file or the radar
+    # feeds the socket from the dummy file or the radar
     socket = Socket(args.socket)
     radar = None
     try:
         await socket.start()
 
-        if args.file != None:
+        if args.file is not None:
             log.info("Waiting for a client before feeding %s", args.file)
             while not socket.clients:
                 await asyncio.sleep(0.1)
-            with open(args.file, "rb") as f:
-                while chunk := f.read(FILE_CHUNK):
-                    socket.send(chunk)
+            socket.send(await asyncio.to_thread(Path(args.file).read_bytes))
             for w in list(socket.clients):
                 await w.drain()
             log.info(f"Fed {args.file}")
@@ -279,10 +277,10 @@ async def run(args):
         radar.enable()
         while True:
             frame = await asyncio.to_thread(radar.read)
-            if frame != None:
+            if frame is not None:
                 socket.send(frame)
     finally:
-        if radar != None:
+        if radar is not None:
             try:
                 radar.disable()
             except Exception as e:
@@ -290,16 +288,31 @@ async def run(args):
             radar.close()
         socket.close()
 
-def help():
-    #help display with argparser
-    ap = argparse.ArgumentParser(description = "Manage the AWR1843OPEVM radar")
-    ap.add_argument("--data_port", default = DATA_PORT, help = "data port (default: CP2105 port 0 by-id)")
-    ap.add_argument("--cli_port", default = CLI_PORT, help = "cli port (default: CP2105 port 1 by-id)")
-    ap.add_argument("--file", metavar = "X.bin", help = "feed a dummy file to the pipeline")
-    ap.add_argument("--socket", default = SOCK, help = "specify socket location (default: /tmp/stream.sock)")
-    ap.add_argument("--log-level", default = "INFO", type = str.upper,
-                    choices = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help = "logging verbosity (default: INFO)")
+
+def parse_args():
+    # help display with argparser
+    ap = argparse.ArgumentParser(description="Manage the AWR1843OPEVM radar")
+    ap.add_argument(
+        "--data_port", default=DATA_PORT, help="data port (default: CP2105 if01 by-id)"
+    )
+    ap.add_argument(
+        "--cli_port", default=CLI_PORT, help="cli port (default: CP2105 if00 by-id)"
+    )
+    ap.add_argument("--file", metavar="X.bin", help="feed a dummy file to the pipeline")
+    ap.add_argument(
+        "--socket",
+        default=SOCK,
+        help="specify socket location (default: /tmp/stream.sock)",
+    )
+    ap.add_argument(
+        "--log-level",
+        default="INFO",
+        type=str.upper,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="logging verbosity (default: INFO)",
+    )
     return ap.parse_args()
+
 
 if __name__ == "__main__":
     main()
