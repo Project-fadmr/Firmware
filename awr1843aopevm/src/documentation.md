@@ -4,4 +4,4 @@
 > 02: Failed to open CLI interface
 > 03: Failed to open DATA interface
 > 04: CLI command failed (board replied with an error, or no reply after one retry)
-> 05: RESET FAILED (CRITICAL)
+> 05: Socket already in use by another running instance
