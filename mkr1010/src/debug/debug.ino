@@ -1,7 +1,6 @@
 // Text-command front end for the display driver, over native USB Serial.
 
 #include <math.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -15,11 +14,12 @@ static bool lineTooLong = false;
 
 static void printHelp() {
     Serial.println("commands:");
-    Serial.println("  s none|warn|green|yellow");
-    Serial.println("  v <number>           (3.4 or 3,4)");
-    Serial.println("  a up|down [RRGGBB]   (0x or # prefix ok)");
-    Serial.println("  c                    clear");
-    Serial.println("  h or ?               help");
+    Serial.println("  s none|green|yellow|red");
+    Serial.println("  v <number>|none                (3.4 or 3,4; none blanks)");
+    Serial.println("  a up|down [green|yellow|red]   (default green)");
+    Serial.println("  a none                        blank the arrow");
+    Serial.println("  c                              clear");
+    Serial.println("  h or ?                         help");
 }
 
 static void fail(const char *reason) {
@@ -33,14 +33,13 @@ static void done() {
     Serial.println("ok");
 }
 
-// Accepts RRGGBB with an optional 0x or # prefix.
-static bool parseColor(char *s, uint32_t *out) {
-    if (s[0] == '#') s++;
-    else if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
-    if (strlen(s) != 6) return false;
-    for (uint8_t i = 0; i < 6; i++)
-        if (!isxdigit((uint8_t)s[i])) return false;
-    *out = strtoul(s, NULL, 16);
+// Maps a name (case-insensitive) to a Status. Shared by the s and a commands.
+static bool parseStatus(const char *s, Status *out) {
+    if (strcasecmp(s, "none") == 0)        *out = STATUS_NONE;
+    else if (strcasecmp(s, "green") == 0)  *out = STATUS_GREEN;
+    else if (strcasecmp(s, "yellow") == 0) *out = STATUS_YELLOW;
+    else if (strcasecmp(s, "red") == 0)    *out = STATUS_RED;
+    else return false;
     return true;
 }
 
@@ -58,11 +57,7 @@ static void handle(char *text) {
         if (!arg) return fail("missing status");
         if (strtok(NULL, " ")) return fail("too many args");
         Status s;
-        if (strcasecmp(arg, "none") == 0)        s = STATUS_NONE;
-        else if (strcasecmp(arg, "warn") == 0)   s = STATUS_WARNING;
-        else if (strcasecmp(arg, "green") == 0)  s = STATUS_SMILEY_GREEN;
-        else if (strcasecmp(arg, "yellow") == 0) s = STATUS_SMILEY_YELLOW;
-        else return fail("bad status");
+        if (!parseStatus(arg, &s)) return fail("bad status");
         sm_status(s);
         return done();
     }
@@ -71,6 +66,10 @@ static void handle(char *text) {
         char *arg = strtok(NULL, " ");
         if (!arg) return fail("missing number");
         if (strtok(NULL, " ")) return fail("too many args");
+        if (strcasecmp(arg, "none") == 0) {
+            sm_value(NAN);
+            return done();
+        }
         for (char *p = arg; *p; p++)
             if (*p == ',') *p = '.';
         char *end;
@@ -84,15 +83,20 @@ static void handle(char *text) {
     if (strcasecmp(cmd, "a") == 0) {
         char *dirArg = strtok(NULL, " ");
         if (!dirArg) return fail("missing direction");
+        if (strcasecmp(dirArg, "none") == 0) {
+            if (strtok(NULL, " ")) return fail("too many args");
+            sm_arrow_clear();
+            return done();
+        }
         Direction d;
         if (strcasecmp(dirArg, "up") == 0)        d = DIR_UP;
         else if (strcasecmp(dirArg, "down") == 0) d = DIR_DOWN;
         else return fail("bad direction");
-        uint32_t color = SM_WHITE;
+        Status c = STATUS_GREEN;
         char *colArg = strtok(NULL, " ");
-        if (colArg && !parseColor(colArg, &color)) return fail("bad color");
+        if (colArg && (!parseStatus(colArg, &c) || c == STATUS_NONE)) return fail("bad color");
         if (strtok(NULL, " ")) return fail("too many args");
-        sm_arrow(d, color);
+        sm_arrow(d, c);
         return done();
     }
 

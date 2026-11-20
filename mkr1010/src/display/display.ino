@@ -4,9 +4,9 @@
 void setup() {
     sm_begin(8, 22);             // data pin, brightness
  
-    sm_status(STATUS_SMILEY_GREEN);
+    sm_status(STATUS_GREEN);
     sm_value(1.3);                // shows 1,3   (10 shows "10")
-    sm_arrow(DIR_UP, SM_GREEN);   // SM_RED, SM_YELLOW, SM_GREEN or any 0xRRGGBB
+    sm_arrow(DIR_UP, STATUS_GREEN); // STATUS_GREEN, STATUS_YELLOW or STATUS_RED; sm_arrow_clear() blanks it
     sm_show();
 }
  

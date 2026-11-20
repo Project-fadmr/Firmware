@@ -68,13 +68,14 @@ void sm_clear(void) { strip.clear(); }
 
 void sm_status(Status s) {
     clearArea(STATUS_X, 9);
-    if (s == STATUS_WARNING)       draw(STATUS_X, 9, WARNING, RED);
-    if (s == STATUS_SMILEY_GREEN)  draw(STATUS_X, 9, SMILEY_GREEN, GREEN);
-    if (s == STATUS_SMILEY_YELLOW) draw(STATUS_X, 9, SMILEY_YELLOW, YELLOW);
+    if (s == STATUS_RED)    draw(STATUS_X, 9, WARNING, RED);
+    if (s == STATUS_GREEN)  draw(STATUS_X, 9, SMILEY_GREEN, GREEN);
+    if (s == STATUS_YELLOW) draw(STATUS_X, 9, SMILEY_YELLOW, YELLOW);
 }
 
 void sm_value(float v) {
     clearArea(VALUE_X, 18);
+    if (isnan(v)) return;
     if (v < 0) v = 0;
 
     if (v >= 9.95f) {                       // 10 (or more): "10"
@@ -89,7 +90,11 @@ void sm_value(float v) {
     draw(VALUE_X + 11, 5, DIGITS[t % 10], WHITE);
 }
 
-void sm_arrow(Direction d, uint32_t color) {
-    clearArea(ARROW_X, 5);
+void sm_arrow_clear(void) { clearArea(ARROW_X, 5); }
+
+void sm_arrow(Direction d, Status c) {
+    sm_arrow_clear();
+    if (c == STATUS_NONE) return;
+    uint32_t color = c == STATUS_GREEN ? GREEN : c == STATUS_YELLOW ? YELLOW : RED;
     draw(ARROW_X, 5, d == DIR_UP ? ARROW_UP : ARROW_DOWN, color);
 }
