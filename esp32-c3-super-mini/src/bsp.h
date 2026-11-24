@@ -27,14 +27,27 @@ extern "C" {
 #define BSP_LED_ACTIVE_LEVEL      0
 
 /* UART */
-#define BSP_UAER_RX               16
-#define BSP_UAER_TX               17
+#define BSP_UAER_RX               GPIO_NUM_20
+#define BSP_UAER_TX               GPIO_NUM_21
  
 /* Scheduler */
 #define BSP_SCHED_MAX_JOBS        8
 #define BSP_SCHED_TASK_STACK      3072
 #define BSP_SCHED_TASK_PRIO       5
- 
+
+/* misc pins */
+#define BSP_pin_0                 GPIO_NUM_0
+#define BSP_pin_1                 GPIO_NUM_1
+#define BSP_pin_2                 GPIO_NUM_2
+#define BSP_pin_3                 GPIO_NUM_3
+#define BSP_pin_4                 GPIO_NUM_4
+#define BSP_pin_5                 GPIO_NUM_5
+#define BSP_pin_6                 GPIO_NUM_6
+#define BSP_pin_7                 GPIO_NUM_7
+#define BSP_pin_9                 GPIO_NUM_9
+#define BSP_pin_10                GPIO_NUM_10
+
+
 /* ===================== API ===================== */
  
 /* --- LED --- */
