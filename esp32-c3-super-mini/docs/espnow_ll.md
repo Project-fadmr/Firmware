@@ -3,7 +3,7 @@ Owner: @molly
 
 ESP-NOW link layer.
 Must configure the ESP-NOW radio for long range (LR mode) streaming, and expose a data interface and a power control interface.
-Radar output with the current config is ~45-55 kbit/s (224-352 B frames at 20 fps, objects only), well within LR's ~0.5 Mbps.
+Radar output with the current config is ~18-28 kbit/s (224-352 B frames at 10 fps, objects only), well within LR's ~0.5 Mbps.
 
 
 <data interface>
@@ -12,7 +12,7 @@ receive: if anything is ever sent back to the board
 signal strength: RSSI of the two car-mode boards' broadcasts, compared by the supervisor in bikeMode
 
 <power control interface>
-radio on/off, so BSP and the supervisor can sleep between frames
+radio on/off, so BSP and the supervisor can sleep between frames. While on, the radio wakes every 100 ms with a 5 ms window (matches the radar frame period)
 TX power
 
 <protocol>

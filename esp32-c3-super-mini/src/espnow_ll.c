@@ -28,6 +28,8 @@
 #define LL_QUEUE_DEPTH 4
 #define LL_SEND_TIMEOUT_MS 100
 #define LL_TX_DEFAULT_QDBM 34
+#define LL_WAKE_INTERVAL_MS 100   // match the radar frame period so the radio sleeps between sends
+#define LL_WAKE_WINDOW_MS 5
 
 typedef struct {
     uint16_t length;
@@ -181,6 +183,12 @@ esp_err_t link_layer_radio_on(void)
     if (err != ESP_OK) goto fail;
 
     err = esp_now_register_recv_cb(espnow_recv_cb);
+    if (err != ESP_OK) goto fail;
+
+    err = esp_wifi_connectionless_module_set_wake_interval(LL_WAKE_INTERVAL_MS);
+    if (err != ESP_OK) goto fail;
+
+    err = esp_now_set_wake_window(LL_WAKE_WINDOW_MS);
     if (err != ESP_OK) goto fail;
 
     esp_now_peer_info_t peer = {0};

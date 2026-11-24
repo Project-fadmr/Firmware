@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include "esp_pm.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "esp_check.h"
 #include "esp_log.h"
@@ -169,28 +170,56 @@ static volatile bool     s_bsp_radar_streaming;
 static TaskHandle_t      s_bsp_radar_task;
 static uint8_t           s_bsp_radar_frame[AWR1843_MAX_FRAME_LEN];
 
+#define GUARD_MS        15   // wake this much before the expected frame
+#define READ_TIMEOUT_MS 50
+
 // this task is the only caller of link_layer_send (it is not reentrant)
 static void bsp_radar_task_fn(void *arg)
 {
     (void)arg;
+    bool     synced = false;
+    int64_t  t_last = 0;
 
     for (;;) {
         if (!s_bsp_radar_streaming) {
+            synced = false;
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
             continue;
         }
 
+        TickType_t timeout = pdMS_TO_TICKS(200);   // resync: frame may be anywhere in the next period
+        if (synced) {
+            int64_t remaining_us = t_last + (int64_t)(AWR1843_FRAME_PERIOD_MS - GUARD_MS) * 1000
+                                   - esp_timer_get_time();
+            // !! round down: waking early only costs a little awake time, waking late misses the frame
+            TickType_t ticks = remaining_us > 0 ? (TickType_t)(remaining_us * configTICK_RATE_HZ / 1000000) : 0;
+            if (ticks > 0) {
+                vTaskDelay(ticks);
+            }
+            timeout = pdMS_TO_TICKS(READ_TIMEOUT_MS);
+        }
+
+        // !! UART RX only works while light sleep is blocked: the lock covers the whole read
         size_t len = 0;
-        esp_err_t err = awr1843_read(s_bsp_radar_frame, sizeof(s_bsp_radar_frame), &len, pdMS_TO_TICKS(200));
+        bsp_power_no_sleep_acquire();
+        esp_err_t err = awr1843_read(s_bsp_radar_frame, sizeof(s_bsp_radar_frame), &len, timeout);
         if (err == ESP_OK) {
+            t_last = esp_timer_get_time();
+            synced = true;
             err = link_layer_send(s_bsp_radar_frame, len);
             if (err != ESP_OK) {
                 ESP_LOGW(TAG, "link_layer_send: %s", esp_err_to_name(err));
             }
-        } else if (err == ESP_ERR_INVALID_STATE) {
-            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);   // radar disabled under us: wait for start
-        } else if (err != ESP_ERR_TIMEOUT) {
-            ESP_LOGW(TAG, "awr1843_read: %s", esp_err_to_name(err));
+            // shortcut: the lock is released right after queuing the frame; we rely on the Wi-Fi driver keeping the chip awake while it transmits. Verify on hardware; wait for TX completion if frames go missing.
+            bsp_power_no_sleep_release();
+        } else {
+            synced = false;
+            bsp_power_no_sleep_release();
+            if (err == ESP_ERR_INVALID_STATE) {
+                ulTaskNotifyTake(pdTRUE, portMAX_DELAY);   // radar disabled under us: wait for start
+            } else if (err != ESP_ERR_TIMEOUT) {
+                ESP_LOGW(TAG, "awr1843_read: %s", esp_err_to_name(err));
+            }
         }
     }
 }

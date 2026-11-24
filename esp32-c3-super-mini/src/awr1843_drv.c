@@ -24,7 +24,7 @@ static const char *const RADAR_CFG[] = {
     "chirpCfg 0 0 0 0 0 0 0 1",
     "chirpCfg 1 1 0 0 0 0 0 2",
     "chirpCfg 2 2 0 0 0 0 0 4",
-    "frameCfg 0 2 16 0 50 1 0",
+    "frameCfg 0 2 16 0 100 1 0",
     "lowPower 0 0",
     "guiMonitor -1 1 0 0 0 0 0",
     "cfarCfg -1 0 2 8 4 3 0 15 1",
@@ -83,6 +83,10 @@ static esp_err_t send_cmd(const char *cmd)
     // !! sensorStop's reply can arrive behind 1-2 in-flight frames; static is safe because callers hold cli_lock
     static char reply[4 * AWR1843_MAX_FRAME_LEN];
     size_t len = 0;
+    esp_err_t err = ESP_FAIL;
+
+    // !! the radar replies over UART, which light sleep would drop: hold the lock for the whole exchange
+    bsp_power_no_sleep_acquire();
 
     for (int i = 0; i < CMD_RETRIES; i++) {
         uart_flush_input(RADAR_UART);
@@ -92,7 +96,8 @@ static esp_err_t send_cmd(const char *cmd)
 
         // memmem, not strstr: frames still in flight around sensorStop put 0x00 bytes before the text
         if (memmem(reply, len, "Done", 4)) {
-            return ESP_OK;
+            err = ESP_OK;
+            break;
         }
         if (memmem(reply, len, PROMPT, sizeof(PROMPT) - 1)) {
             break;   // radar answered without "Done": retrying won't help
@@ -100,8 +105,11 @@ static esp_err_t send_cmd(const char *cmd)
         ESP_LOGW(TAG, "'%s' timed out, retrying", cmd);
     }
 
-    ESP_LOGE(TAG, "'%s' failed, board replied: %.*s", cmd, (int)len, reply);
-    return ESP_FAIL;
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "'%s' failed, board replied: %.*s", cmd, (int)len, reply);
+    }
+    bsp_power_no_sleep_release();
+    return err;
 }
 
 esp_err_t awr1843_init(void)
@@ -143,10 +151,7 @@ esp_err_t awr1843_config(void)
     if (err != ESP_OK) {
         goto out;
     }
-    if (enabled) {
-        enabled = false;
-        bsp_power_no_sleep_release();   // taken by awr1843_enable
-    }
+    enabled = false;
 
     err = send_cmd("flushCfg");
     for (size_t i = 0; i < n && err == ESP_OK; i++) {
@@ -167,8 +172,6 @@ esp_err_t awr1843_enable(void)
 
     xSemaphoreTake(cli_lock, portMAX_DELAY);
     if (!enabled) {
-        // error ignored: it only fails when BSP power management isn't set up, and then there's no light sleep anyway
-        bsp_power_no_sleep_acquire();
         // set before sending: the radar may have started even if the reply was lost
         enabled = true;
         // !! check whether plain "sensorStart" after "sensorStop" reapplies the config; SDK 3.x has "sensorStart 0" to skip that
@@ -250,7 +253,6 @@ esp_err_t awr1843_disable(void)
         err = send_cmd("sensorStop");
         if (err == ESP_OK) {
             enabled = false;
-            bsp_power_no_sleep_release();   // light sleep allowed again; UART RX doesn't work in it
         }
     }
     xSemaphoreGive(cli_lock);
@@ -264,10 +266,7 @@ void awr1843_deinit(void)
     }
 
     awr1843_disable();
-    if (enabled) {   // radar didn't answer sensorStop: release the sleep lock anyway
-        enabled = false;
-        bsp_power_no_sleep_release();
-    }
+    enabled = false;
 
     uart_driver_delete(RADAR_UART);
     vSemaphoreDelete(cli_lock);
