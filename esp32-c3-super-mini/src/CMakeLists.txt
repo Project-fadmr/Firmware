@@ -10,7 +10,7 @@ idf_component_register(
         "."
 
     REQUIRES
-        driver
+        esp_driver_gpio
         esp_timer
         esp_wifi
         esp_event
