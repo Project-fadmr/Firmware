@@ -50,6 +50,34 @@ esp_err_t bsp_sched_start(void);
 /* Returns job id (>= 0) or -1 if table full / bad args. First run is one period after add. */
 int       bsp_sched_add(bsp_sched_fn_t fn, void *ctx, uint32_t period_ms);
 void      bsp_sched_remove(int job_id);
+
+
+/* ---------------- Power Management ---------------- */
+
+esp_err_t bsp_power_init(uint32_t max_freq_mhz,
+                         uint32_t min_freq_mhz,
+                         bool light_sleep_enable);
+
+esp_err_t bsp_power_lock_acquire(void);
+esp_err_t bsp_power_lock_release(void);
+
+esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us);
+
+
+/* ---------------- Memory Management ---------------- */
+
+typedef struct {
+    size_t total;
+    size_t free;
+    size_t minimum_free;
+    size_t largest_block;
+} bsp_mem_stats_t;
+
+esp_err_t bsp_mem_get_stats(bsp_mem_stats_t *stats);
+
+void *bsp_mem_alloc(size_t size);
+void *bsp_mem_calloc(size_t count, size_t size);
+void bsp_mem_free(void *ptr);
  
 #ifdef __cplusplus
 }

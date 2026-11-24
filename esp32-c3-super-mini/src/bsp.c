@@ -8,6 +8,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include <stdlib.h>
+#include "esp_pm.h"
+#include "esp_sleep.h"
+#include "esp_heap_caps.h"
 
 /* ---------------- LED ---------------- */
 
@@ -150,4 +154,111 @@ void bsp_sched_remove(int job_id)
     xSemaphoreTake(s_bsp_sched_lock, portMAX_DELAY);
     s_bsp_jobs[job_id].used = false;
     xSemaphoreGive(s_bsp_sched_lock);
+}
+
+
+/* ---------------- Power Management ---------------- */
+
+static esp_pm_lock_handle_t s_bsp_power_lock;
+static bool s_bsp_power_initialized = false;
+
+esp_err_t bsp_power_init(uint32_t max_freq_mhz,
+                         uint32_t min_freq_mhz,
+                         bool light_sleep_enable)
+{
+    if (s_bsp_power_initialized) return ESP_OK;
+
+    if (min_freq_mhz > max_freq_mhz ||
+        max_freq_mhz == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const esp_pm_config_t cfg = {
+        .max_freq_mhz = max_freq_mhz,
+        .min_freq_mhz = min_freq_mhz,
+        .light_sleep_enable = light_sleep_enable,
+    };
+
+    esp_err_t err = esp_pm_configure(&cfg);
+    if (err != ESP_OK) return err;
+
+    err = esp_pm_lock_create(
+        ESP_PM_NO_LIGHT_SLEEP,
+        0,
+        "bsp_power",
+        &s_bsp_power_lock
+    );
+
+    if (err != ESP_OK) return err;
+
+    s_bsp_power_initialized = true;
+    return ESP_OK;
+}
+
+esp_err_t bsp_power_lock_acquire(void)
+{
+    if (!s_bsp_power_initialized)
+        return ESP_ERR_INVALID_STATE;
+
+    return esp_pm_lock_acquire(s_bsp_power_lock);
+}
+
+esp_err_t bsp_power_lock_release(void)
+{
+    if (!s_bsp_power_initialized)
+        return ESP_ERR_INVALID_STATE;
+
+    return esp_pm_lock_release(s_bsp_power_lock);
+}
+
+esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us)
+{
+    if (sleep_time_us > 0) {
+        esp_err_t err = esp_sleep_enable_timer_wakeup(sleep_time_us);
+        if (err != ESP_OK) return err;
+    }
+
+    esp_deep_sleep_start();
+
+    return ESP_OK; // Normally never reached
+}
+
+/* ---------------- Memory Management ---------------- */
+
+esp_err_t bsp_mem_get_stats(bsp_mem_stats_t *stats)
+{
+    if (!stats) return ESP_ERR_INVALID_ARG;
+
+    stats->total = heap_caps_get_total_size(MALLOC_CAP_8BIT);
+
+    stats->free = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+
+    stats->minimum_free =
+        heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+
+    stats->largest_block =
+        heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+
+    return ESP_OK;
+}
+
+void *bsp_mem_alloc(size_t size)
+{
+    if (size == 0) return NULL;
+
+    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
+}
+
+void *bsp_mem_calloc(size_t count, size_t size)
+{
+    if (count == 0 || size == 0) return NULL;
+
+    return heap_caps_calloc(count, size, MALLOC_CAP_8BIT);
+}
+
+void bsp_mem_free(void *ptr)
+{
+    if (ptr) {
+        heap_caps_free(ptr);
+    }
 }
