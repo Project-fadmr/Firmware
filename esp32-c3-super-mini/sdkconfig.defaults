@@ -1,4 +1,9 @@
 CONFIG_IDF_TARGET="esp32c3"
 
+
+# Power management
 CONFIG_PM_ENABLE=y
+
+# Automatic light sleep through FreeRTOS
 CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
