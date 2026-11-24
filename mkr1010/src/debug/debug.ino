@@ -18,6 +18,7 @@ static void printHelp() {
     Serial.println("  v <number>|none                (3.4 or 3,4; none blanks)");
     Serial.println("  a up|down [green|yellow|red]   (default green)");
     Serial.println("  a none                        blank the arrow");
+    Serial.println("  b 0-255                        brightness (lossy: redraw after dimming)");
     Serial.println("  c                              clear");
     Serial.println("  h or ?                         help");
 }
@@ -97,6 +98,17 @@ static void handle(char *text) {
         if (colArg && (!parseStatus(colArg, &c) || c == STATUS_NONE)) return fail("bad color");
         if (strtok(NULL, " ")) return fail("too many args");
         sm_arrow(d, c);
+        return done();
+    }
+
+    if (strcasecmp(cmd, "b") == 0) {
+        char *arg = strtok(NULL, " ");
+        if (!arg) return fail("missing brightness");
+        if (strtok(NULL, " ")) return fail("too many args");
+        char *end;
+        long b = strtol(arg, &end, 10);
+        if (end == arg || *end != '\0' || b < 0 || b > 255) return fail("bad brightness");
+        sm_brightness((uint8_t)b);
         return done();
     }
 

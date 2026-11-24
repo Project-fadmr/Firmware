@@ -65,6 +65,8 @@ void sm_begin(uint8_t dataPin, uint8_t brightness) {
 
 void sm_show(void)  { strip.show(); }
 void sm_clear(void) { strip.clear(); }
+// Adafruit rescales the pixel buffer in place, so dimming is lossy and 0 wipes the frame.
+void sm_brightness(uint8_t b) { strip.setBrightness(b); }
 
 void sm_status(Status s) {
     clearArea(STATUS_X, 9);

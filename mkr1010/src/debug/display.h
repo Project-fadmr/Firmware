@@ -16,6 +16,7 @@ typedef enum { DIR_UP, DIR_DOWN } Direction;
 void sm_begin(uint8_t dataPin, uint8_t brightness);
 void sm_show(void);
 void sm_clear(void);
+void sm_brightness(uint8_t b);                // 0-255, call sm_show() after
 
 void sm_status(Status s);                    // left icon
 void sm_value(float v);                      // 0.0-9.9 -> "d,d", 10 or more -> "10", NAN clears
