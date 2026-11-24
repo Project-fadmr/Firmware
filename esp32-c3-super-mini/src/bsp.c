@@ -13,6 +13,11 @@
 #include "esp_sleep.h"
 #include "esp_heap_caps.h"
 #include "esp_check.h"
+#include "esp_log.h"
+#include "awr1843_drv.h"
+#include "espnow_ll.h"
+
+static const char *TAG = "bsp";
 
 /* ---------------- LED ---------------- */
 
@@ -158,6 +163,61 @@ void bsp_sched_remove(int job_id)
 }
 
 
+/* ---------------- Radar stream ---------------- */
+
+static volatile bool     s_bsp_radar_streaming;
+static TaskHandle_t      s_bsp_radar_task;
+static uint8_t           s_bsp_radar_frame[AWR1843_MAX_FRAME_LEN];
+
+// this task is the only caller of link_layer_send (it is not reentrant)
+static void bsp_radar_task_fn(void *arg)
+{
+    (void)arg;
+
+    for (;;) {
+        if (!s_bsp_radar_streaming) {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+            continue;
+        }
+
+        size_t len = 0;
+        esp_err_t err = awr1843_read(s_bsp_radar_frame, sizeof(s_bsp_radar_frame), &len, pdMS_TO_TICKS(200));
+        if (err == ESP_OK) {
+            err = link_layer_send(s_bsp_radar_frame, len);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "link_layer_send: %s", esp_err_to_name(err));
+            }
+        } else if (err == ESP_ERR_INVALID_STATE) {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);   // radar disabled under us: wait for start
+        } else if (err != ESP_ERR_TIMEOUT) {
+            ESP_LOGW(TAG, "awr1843_read: %s", esp_err_to_name(err));
+        }
+    }
+}
+
+esp_err_t bsp_radar_stream_start(void)
+{
+    if (!s_bsp_radar_task) {
+        BaseType_t ok = xTaskCreate(bsp_radar_task_fn, "bsp_radar", BSP_RADAR_TASK_STACK,
+                                    NULL, BSP_RADAR_TASK_PRIO, &s_bsp_radar_task);
+        if (ok != pdPASS) return ESP_ERR_NO_MEM;
+    }
+
+    esp_err_t err = awr1843_enable();   // no-op if already enabled
+    if (err != ESP_OK) return err;
+
+    s_bsp_radar_streaming = true;
+    xTaskNotifyGive(s_bsp_radar_task);
+    return ESP_OK;
+}
+
+esp_err_t bsp_radar_stream_stop(void)
+{
+    s_bsp_radar_streaming = false;   // clear first so the task stops reading before the radar goes quiet
+    return awr1843_disable();
+}
+
+
 /* ---------------- Power Management ---------------- */
 
 static esp_pm_lock_handle_t s_no_sleep_lock;
@@ -221,27 +281,10 @@ esp_err_t bsp_power_no_sleep_release(void)
 
 esp_err_t bsp_power_gpio_init(void)
 {
-    const gpio_config_t cfg = {
-        .pin_bit_mask = 1ULL << BSP_POWER_GPIO,
-        .mode         = GPIO_MODE_OUTPUT,
-        .pull_up_en   = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type    = GPIO_INTR_DISABLE,
-    };
-
-    esp_err_t err = gpio_config(&cfg);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    // Set GPIO21 LOW.
-    err = gpio_set_level(BSP_POWER_GPIO, 0);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    // Retain GPIO state during light sleep.
-    return gpio_hold_en(BSP_UART_TX);
+    // Sleep-only config: the UART keeps the pin in active mode. Must run after uart_set_pin, which resets the sleep pull.
+    ESP_RETURN_ON_ERROR(gpio_sleep_sel_en(BSP_UART_TX), "BSP", "sleep sel");
+    ESP_RETURN_ON_ERROR(gpio_sleep_set_direction(BSP_UART_TX, GPIO_MODE_DISABLE), "BSP", "sleep dir");
+    return gpio_sleep_set_pull_mode(BSP_UART_TX, GPIO_PULLDOWN_ONLY);
 }
 
 

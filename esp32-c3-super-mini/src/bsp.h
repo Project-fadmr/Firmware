@@ -12,6 +12,7 @@
 #define BSP_SUPER_MINI_H
  
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "esp_err.h"
 #include "driver/gpio.h"
@@ -34,6 +35,10 @@ extern "C" {
 #define BSP_SCHED_MAX_JOBS        8
 #define BSP_SCHED_TASK_STACK      3072
 #define BSP_SCHED_TASK_PRIO       5
+
+/* Radar stream */
+#define BSP_RADAR_TASK_STACK      4096
+#define BSP_RADAR_TASK_PRIO       5
 
 /* misc pins */
 #define BSP_pin_0                 GPIO_NUM_0
@@ -65,14 +70,13 @@ int       bsp_sched_add(bsp_sched_fn_t fn, void *ctx, uint32_t period_ms);
 void      bsp_sched_remove(int job_id);
 
 
+/* --- Radar stream --- */
+/* Caller must already have run awr1843_init + awr1843_config and link_layer_init. */
+esp_err_t bsp_radar_stream_start(void);
+esp_err_t bsp_radar_stream_stop(void);
+
+
 /* ---------------- Power Management ---------------- */
-
-esp_err_t bsp_power_init(uint32_t max_freq_mhz,
-                         uint32_t min_freq_mhz,
-                         bool light_sleep_enable);
-
-esp_err_t bsp_power_lock_acquire(void);
-esp_err_t bsp_power_lock_release(void);
 
 esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us);
 esp_err_t bsp_power_init(void);
@@ -82,6 +86,7 @@ esp_err_t bsp_power_no_sleep_release(void);
 
 /* ---------------- Power GPIO ---------------- */
 
+// Called by awr1843_init right after uart_set_pin; nobody else calls it.
 esp_err_t bsp_power_gpio_init(void);
 
 
