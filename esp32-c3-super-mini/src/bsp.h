@@ -8,6 +8,8 @@
  *   - Scheduler jobs run cooperatively in one task: keep them short, never block.
  *   - Resolution is one FreeRTOS tick (default 10 ms, CONFIG_FREERTOS_HZ).
  */
+#pragma once
+
 #ifndef BSP_SUPER_MINI_H
 #define BSP_SUPER_MINI_H
  
@@ -78,9 +80,7 @@ esp_err_t bsp_radar_stream_stop(void);
 
 /* ---------------- Power Management ---------------- */
 
-esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us);
 esp_err_t bsp_power_init(void);
-
 esp_err_t bsp_power_no_sleep_acquire(void);
 esp_err_t bsp_power_no_sleep_release(void);
 
