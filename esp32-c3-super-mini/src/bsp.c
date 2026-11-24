@@ -13,6 +13,7 @@
 #include "esp_sleep.h"
 #include "esp_heap_caps.h"
 #include "esp_check.h"
+#include "esp_pm.h"
 
 /* ---------------- LED ---------------- */
 
@@ -222,7 +223,7 @@ esp_err_t bsp_power_no_sleep_release(void)
 esp_err_t bsp_power_gpio_init(void)
 {
     const gpio_config_t cfg = {
-        .pin_bit_mask = 1ULL << BSP_POWER_GPIO,
+        .pin_bit_mask = 1ULL << BSP_UART_TX,
         .mode         = GPIO_MODE_OUTPUT,
         .pull_up_en   = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -235,7 +236,7 @@ esp_err_t bsp_power_gpio_init(void)
     }
 
     // Set GPIO21 LOW.
-    err = gpio_set_level(BSP_POWER_GPIO, 0);
+    err = gpio_set_level(BSP_UART_TX, 0);
     if (err != ESP_OK) {
         return err;
     }

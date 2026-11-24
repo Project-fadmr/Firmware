@@ -122,7 +122,7 @@ esp_err_t awr1843_init(void)
     };
     ESP_RETURN_ON_ERROR(uart_param_config(RADAR_UART, &uart_config), TAG, "uart_param_config");
 
-    ESP_RETURN_ON_ERROR(uart_set_pin(RADAR_UART, BSP_UAER_TX, BSP_UAER_RX,
+    ESP_RETURN_ON_ERROR(uart_set_pin(RADAR_UART, BSP_UART_TX, BSP_UART_RX,
                                      UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE), TAG, "uart_set_pin");
 
     // RX buffer holds ~4 max-size frames so a slow reader doesn't drop bytes; TX 0 = writes block until sent
@@ -144,7 +144,7 @@ esp_err_t awr1843_config(void)
     }
     if (enabled) {
         enabled = false;
-        bsp_power_lock_release();   // taken by awr1843_enable
+        bsp_power_no_sleep_release();   // taken by awr1843_enable
     }
 
     err = send_cmd("flushCfg");
@@ -167,7 +167,7 @@ esp_err_t awr1843_enable(void)
     xSemaphoreTake(cli_lock, portMAX_DELAY);
     if (!enabled) {
         // error ignored: it only fails when BSP power management isn't set up, and then there's no light sleep anyway
-        bsp_power_lock_acquire();
+        bsp_power_no_sleep_acquire();
         // set before sending: the radar may have started even if the reply was lost
         enabled = true;
         // !! check whether plain "sensorStart" after "sensorStop" reapplies the config; SDK 3.x has "sensorStart 0" to skip that
@@ -249,7 +249,7 @@ esp_err_t awr1843_disable(void)
         err = send_cmd("sensorStop");
         if (err == ESP_OK) {
             enabled = false;
-            bsp_power_lock_release();   // light sleep allowed again; UART RX doesn't work in it
+            bsp_power_no_sleep_release();   // light sleep allowed again; UART RX doesn't work in it
         }
     }
     xSemaphoreGive(cli_lock);
@@ -265,7 +265,7 @@ void awr1843_deinit(void)
     awr1843_disable();
     if (enabled) {   // radar didn't answer sensorStop: release the sleep lock anyway
         enabled = false;
-        bsp_power_lock_release();
+        bsp_power_no_sleep_release();
     }
 
     uart_driver_delete(RADAR_UART);
