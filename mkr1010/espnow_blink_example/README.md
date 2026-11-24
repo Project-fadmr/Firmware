@@ -8,10 +8,10 @@ Verified on hardware 2026-11-20: 10 blinks in 10 s.
 
 The SAMD21 has no radio. The NINA-W102 module (an ESP32) does, but its stock WiFiNINA firmware cannot do ESP-NOW, so the NINA gets custom firmware:
 
-C3 --ESP-NOW (ch 1, broadcast)--> NINA (`nina_receiver`) --UART 'B' @115200--> SAMD (`mkr_bridge`, `Serial1`) --> LED_BUILTIN + "blink" on USB serial
+C3 --ESP-NOW (ch 1, broadcast)--> NINA (`nina_receiver`) --UART raw payload @115200--> SAMD (`mkr_bridge`, `Serial1`) --> same bytes on USB serial
 
-- `nina_receiver/`: runs on the NINA. Every ESP-NOW frame -> writes `'B'` to its UART0.
-- `mkr_bridge/`: runs on the SAMD. Releases the NINA from reset, reads `Serial1`, blinks on each `'B'` (other bytes, e.g. NINA boot log, are ignored).
+- `nina_receiver/`: runs on the NINA. Every ESP-NOW frame -> writes its payload bytes unchanged to UART0.
+- `mkr_bridge/`: runs on the SAMD. Releases the NINA from reset, copies every `Serial1` byte to USB serial unchanged (the NINA boot log comes through too). No blinking anymore: this is the raw-binary receive test.
 
 The NINA firmware lives in the NINA's own flash: it survives power cycles and normal SAMD sketch uploads. Any SAMD sketch must release the NINA from reset and read `Serial1` like `mkr_bridge` does. WiFiNINA does not work while this firmware is on the NINA.
 

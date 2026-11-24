@@ -1,6 +1,5 @@
 void setup() {
   Serial.begin(115200);
-  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(NINA_GPIO0, OUTPUT);
   pinMode(NINA_RESETN, OUTPUT);
   digitalWrite(NINA_GPIO0, HIGH);
@@ -11,10 +10,5 @@ void setup() {
 }
 
 void loop() {
-  if (Serial1.available() && Serial1.read() == 'B') {
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
-    digitalWrite(LED_BUILTIN, LOW);
-    Serial.println("blink");
-  }
+  while (Serial1.available()) Serial.write(Serial1.read());
 }

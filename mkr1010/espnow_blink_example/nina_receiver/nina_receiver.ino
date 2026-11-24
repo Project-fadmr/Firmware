@@ -3,7 +3,7 @@
 #include <esp_wifi.h>
 
 void onRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  Serial.write('B');
+  Serial.write(data, len);
 }
 
 void setup() {

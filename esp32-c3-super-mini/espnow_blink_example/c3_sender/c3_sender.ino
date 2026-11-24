@@ -23,7 +23,10 @@ void setup() {
 }
 
 void loop() {
-  uint8_t b = 'B';
-  esp_now_send(bcast, &b, 1);
+  static uint8_t seq = 0;
+  uint8_t buf[250]; // ESP-NOW v1 max payload
+  for (int i = 0; i < 250; i++) buf[i] = seq + i;
+  seq++;
+  esp_now_send(bcast, buf, sizeof buf);
   delay(1000);
 }
