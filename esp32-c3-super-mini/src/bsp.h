@@ -27,8 +27,8 @@ extern "C" {
 #define BSP_LED_ACTIVE_LEVEL      0
 
 /* UART */
-#define BSP_UAER_RX               GPIO_NUM_20
-#define BSP_UAER_TX               GPIO_NUM_21
+#define BSP_UART_RX               GPIO_NUM_20
+#define BSP_UART_TX               GPIO_NUM_21
  
 /* Scheduler */
 #define BSP_SCHED_MAX_JOBS        8
@@ -75,6 +75,14 @@ esp_err_t bsp_power_lock_acquire(void);
 esp_err_t bsp_power_lock_release(void);
 
 esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us);
+esp_err_t bsp_power_init(void);
+
+esp_err_t bsp_power_no_sleep_acquire(void);
+esp_err_t bsp_power_no_sleep_release(void);
+
+/* ---------------- Power GPIO ---------------- */
+
+esp_err_t bsp_power_gpio_init(void);
 
 
 /* ---------------- Memory Management ---------------- */

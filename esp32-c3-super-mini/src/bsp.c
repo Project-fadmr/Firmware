@@ -4,7 +4,7 @@
 //Revised: 20/11/2026 @lilleole, @voxvoltera
 
 /* bsp_super_mini.c - implementation, see bsp_super_mini.h */
-#include "bsp_super_mini.h"
+#include "bsp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -12,6 +12,7 @@
 #include "esp_pm.h"
 #include "esp_sleep.h"
 #include "esp_heap_caps.h"
+#include "esp_check.h"
 
 /* ---------------- LED ---------------- */
 
@@ -159,69 +160,90 @@ void bsp_sched_remove(int job_id)
 
 /* ---------------- Power Management ---------------- */
 
-static esp_pm_lock_handle_t s_bsp_power_lock;
-static bool s_bsp_power_initialized = false;
+static esp_pm_lock_handle_t s_no_sleep_lock;
+static bool s_power_initialized = false;
 
-esp_err_t bsp_power_init(uint32_t max_freq_mhz,
-                         uint32_t min_freq_mhz,
-                         bool light_sleep_enable)
+esp_err_t bsp_power_init(void)
 {
-    if (s_bsp_power_initialized) return ESP_OK;
-
-    if (min_freq_mhz > max_freq_mhz ||
-        max_freq_mhz == 0) {
-        return ESP_ERR_INVALID_ARG;
+    if (s_power_initialized) {
+        return ESP_OK;
     }
 
-    const esp_pm_config_t cfg = {
-        .max_freq_mhz = max_freq_mhz,
-        .min_freq_mhz = min_freq_mhz,
-        .light_sleep_enable = light_sleep_enable,
+    const esp_pm_config_t config = {
+        .max_freq_mhz = 160,
+        .min_freq_mhz = 40,
+        .light_sleep_enable = true,
     };
 
-    esp_err_t err = esp_pm_configure(&cfg);
-    if (err != ESP_OK) return err;
-
-    err = esp_pm_lock_create(
-        ESP_PM_NO_LIGHT_SLEEP,
-        0,
-        "bsp_power",
-        &s_bsp_power_lock
+    ESP_RETURN_ON_ERROR(
+        esp_pm_configure(&config),
+        "BSP",
+        "Failed to configure power management"
     );
 
-    if (err != ESP_OK) return err;
+    ESP_RETURN_ON_ERROR(
+        esp_pm_lock_create(
+            ESP_PM_NO_LIGHT_SLEEP,
+            0,
+            "bsp_no_sleep",
+            &s_no_sleep_lock
+        ),
+        "BSP",
+        "Failed to create power lock"
+    );
 
-    s_bsp_power_initialized = true;
+    s_power_initialized = true;
+
     return ESP_OK;
 }
 
-esp_err_t bsp_power_lock_acquire(void)
+esp_err_t bsp_power_no_sleep_acquire(void)
 {
-    if (!s_bsp_power_initialized)
+    if (!s_power_initialized) {
         return ESP_ERR_INVALID_STATE;
-
-    return esp_pm_lock_acquire(s_bsp_power_lock);
-}
-
-esp_err_t bsp_power_lock_release(void)
-{
-    if (!s_bsp_power_initialized)
-        return ESP_ERR_INVALID_STATE;
-
-    return esp_pm_lock_release(s_bsp_power_lock);
-}
-
-esp_err_t bsp_power_deep_sleep(uint64_t sleep_time_us)
-{
-    if (sleep_time_us > 0) {
-        esp_err_t err = esp_sleep_enable_timer_wakeup(sleep_time_us);
-        if (err != ESP_OK) return err;
     }
 
-    esp_deep_sleep_start();
-
-    return ESP_OK; // Normally never reached
+    return esp_pm_lock_acquire(s_no_sleep_lock);
 }
+
+esp_err_t bsp_power_no_sleep_release(void)
+{
+    if (!s_power_initialized) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    return esp_pm_lock_release(s_no_sleep_lock);
+}
+
+
+/* ---------------- Power GPIO ---------------- */
+
+
+esp_err_t bsp_power_gpio_init(void)
+{
+    const gpio_config_t cfg = {
+        .pin_bit_mask = 1ULL << BSP_POWER_GPIO,
+        .mode         = GPIO_MODE_OUTPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+
+    esp_err_t err = gpio_config(&cfg);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    // Set GPIO21 LOW.
+    err = gpio_set_level(BSP_POWER_GPIO, 0);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    // Retain GPIO state during light sleep.
+    return gpio_hold_en(BSP_UART_TX);
+}
+
 
 /* ---------------- Memory Management ---------------- */
 
