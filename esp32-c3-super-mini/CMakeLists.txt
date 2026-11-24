@@ -4,4 +4,5 @@ set(EXTRA_COMPONENT_DIRS src)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-project(fadmr_firmware)
+
+project(fadmr_c3)
