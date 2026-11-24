@@ -99,10 +99,7 @@ static esp_err_t send_cmd(const char *cmd)
             err = ESP_OK;
             break;
         }
-        if (memmem(reply, len, PROMPT, sizeof(PROMPT) - 1)) {
-            break;   // radar answered without "Done": retrying won't help
-        }
-        ESP_LOGW(TAG, "'%s' timed out, retrying", cmd);
+        ESP_LOGW(TAG, "'%s' no Done, retrying", cmd);
     }
 
     if (err != ESP_OK) {

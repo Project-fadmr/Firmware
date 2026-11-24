@@ -8,7 +8,7 @@ Verified on hardware 2026-11-20: 10 blinks in 10 s.
 
 The SAMD21 has no radio. The NINA-W102 module (an ESP32) does, but its stock WiFiNINA firmware cannot do ESP-NOW, so the NINA gets custom firmware:
 
-C3 --ESP-NOW (ch 1, broadcast)--> NINA (`nina_receiver`) --UART raw payload @115200--> SAMD (`mkr_bridge`, `Serial1`) --> same bytes on USB serial
+C3 --ESP-NOW (ch 6, LR, broadcast)--> NINA (`nina_receiver`) --UART raw payload @115200--> SAMD (`mkr_bridge`, `Serial1`) --> same bytes on USB serial
 
 - `nina_receiver/`: runs on the NINA. Every ESP-NOW frame -> writes its payload bytes unchanged to UART0.
 - `mkr_bridge/`: runs on the SAMD. Releases the NINA from reset, copies every `Serial1` byte to USB serial unchanged (the NINA boot log comes through too). No blinking anymore: this is the raw-binary receive test.
@@ -20,6 +20,7 @@ The NINA firmware lives in the NINA's own flash: it survives power cycles and no
 - `SerialNINA` is not defined for `mkrwifi1010` in SAMD core 1.8.14; the NINA link is `Serial1`.
 - `NINA_RESETN` is active-high on this board: HIGH holds the NINA in reset, LOW runs it.
 - NINA flash is 2 MB: build with `FlashSize=2M, PartitionScheme=minimal, FlashFreq=40, FlashMode=dio`. 80 MHz flash boot-loops ("partition 0 invalid magic number").
+- Both ends must use the same channel (6) and the same protocol (LR only); a mismatch gives silence, not an error.
 - The C3 SuperMini must use `WiFi.setTxPower(WIFI_POWER_8_5dBm)`; at full power its antenna barely radiates and nothing arrives. Broadcast "sent ok" is reported regardless, so it proves nothing.
 
 ## Flashing
