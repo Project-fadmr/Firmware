@@ -1,6 +1,6 @@
 //Texas Instruments AWR1843AOPEVM UART Driver for the ESP32-C3-Super-Mini
-//Version: 0
-//Revised: 20/11/2026 @voxvoltera
+//Version: 1
+//Revised: 27/11/2026 @voxvoltera
 
 #pragma once
 
@@ -14,6 +14,9 @@
 #define AWR1843_FRAME_PERIOD_MS 100   // must match the frameCfg periodicity in RADAR_CFG
 
 esp_err_t awr1843_init(void);
+// Wake the radar's CLI and confirm it answers (prompt seen). Call after awr1843_init, before awr1843_config.
+// On failure it logs which of wiring / baud / firmware is the likely culprit. Safe to call repeatedly.
+esp_err_t awr1843_connect(void);
 esp_err_t awr1843_config(void);
 esp_err_t awr1843_enable(void);
 esp_err_t awr1843_disable(void);

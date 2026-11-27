@@ -1,12 +1,20 @@
 CONFIG_IDF_TARGET="esp32c3"
 
-
 # Power management
 CONFIG_PM_ENABLE=y
 
 # Automatic light sleep through FreeRTOS
 CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
 CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
+
 # Console on USB-Serial-JTAG: GPIO20/21 (UART0) belong to the radar UART
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# --- added ---
+# Keep the radar UART RX interrupt running while flash cache is disabled
+# (Wi-Fi start, NVS writes), so the FIFO doesn't overflow at 892857 baud
+CONFIG_UART_ISR_IN_IRAM=y
+
+# Headroom for Wi-Fi init inside app_main
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
