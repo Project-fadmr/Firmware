@@ -11,7 +11,7 @@
 
 // PC driver allows 64 KiB; real frames are 224-352 B (see espnow_ll.md)
 #define AWR1843_MAX_FRAME_LEN  1024
-#define AWR1843_FRAME_PERIOD_MS 100   // must match the frameCfg periodicity in RADAR_CFG
+#define AWR1843_FRAME_PERIOD_MS 100   // also sets the frameCfg periodicity in RADAR_CFG
 
 esp_err_t awr1843_init(void);
 // Wake the radar's CLI and confirm it answers (prompt seen). Call after awr1843_init, before awr1843_config.

@@ -16,6 +16,9 @@
 
 static const char *TAG = "awr1843";
 
+#define AWR1843_STR2(x) #x
+#define AWR1843_STR(x)  AWR1843_STR2(x)
+
 static const char *const RADAR_CFG[] = {
     "dfeDataOutputMode 1",
     "channelCfg 15 7 0",
@@ -25,7 +28,7 @@ static const char *const RADAR_CFG[] = {
     "chirpCfg 0 0 0 0 0 0 0 1",
     "chirpCfg 1 1 0 0 0 0 0 2",
     "chirpCfg 2 2 0 0 0 0 0 4",
-    "frameCfg 0 2 16 0 100 1 0",
+    "frameCfg 0 2 16 0 " AWR1843_STR(AWR1843_FRAME_PERIOD_MS) " 1 0",
     "lowPower 0 0",
     "guiMonitor -1 1 0 0 0 0 0",
     "cfarCfg -1 0 2 8 4 3 0 15 1",
@@ -86,8 +89,6 @@ static size_t read_until_prompt(char *buf, size_t cap, TickType_t timeout)
 
 static esp_err_t send_cmd_ex(const char *cmd, TickType_t timeout, int retries)
 {
-    // !! sensorStop's reply can arrive behind 1-2 in-flight frames; static is safe because callers hold cli_lock
-    static char reply[4 * AWR1843_MAX_FRAME_LEN];
     size_t len = 0;
     esp_err_t err = ESP_FAIL;
 

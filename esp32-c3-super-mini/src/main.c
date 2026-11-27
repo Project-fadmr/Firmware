@@ -136,13 +136,10 @@ static esp_err_t stage_link(void)
 {
     static bool init_done = false;
     if (!init_done) {
-        esp_err_t err = link_layer_init();
-        if (err == ESP_OK) {
-            init_done = true;
-        }
-        return err;
+        init_done = true;
+        return link_layer_init();
     }
-    return link_layer_radio_on();
+    return link_layer_radio_on();   // ESP_ERR_INVALID_STATE if init failed before the radio step: fatal reboots
 }
 
 static esp_err_t stage_stream(void)
