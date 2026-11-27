@@ -8,6 +8,6 @@ The supervisor calls into BSP. The other modules don't change board state themse
 <responsibilities>
 power states and CPU speed of the SAMD21
 NINA module: reset/enable pin, so the radio can be restarted or switched off
-pins: own the pin map (NINA SPI link, WS2812B data on D5, speedometer on D0)
+pins: own the pin map (NINA UART link, WS2812B data on D5, speedometer on D0)
 speedometer: D0, interrupt-capable so pulses can be counted. sensor still undetermined
 power: 3.7 V Li-ion batteries. the LED matrix runs off step-up converters (5 V)

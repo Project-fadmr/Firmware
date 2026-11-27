@@ -1,4 +1,4 @@
-Files: `awr1843_drv_test/tools/test_single_uart.py`, `awr1843_drv_test/tools/flash_mmwave.py`
+Files: `tools/awr1843_drv_test/tools/test_single_uart.py`, `tools/awr1843_drv_test/tools/flash_mmwave.py`
 Status: radar firmware patched and verified over USB on 2026-11-20. The J7 cable was not yet built.
 
 Hand-off sheet for a future session: check that the home-made J7 cable carries the radar's single UART (commands + data) once it's assembled.
@@ -18,7 +18,7 @@ Images in `~/ti/backup/` (checksums in `SHA256SUMS`):
 
 !! the real baud is 892857, not 921600. The radar divides 200 MHz by an integer (`uartsci.c:1735`), giving a −3.1 % error. The CP2105 tolerates it at 921600; the ESP32-C3 should be set to 892857 exactly.
 !! replies end in `\n` only, never `\r\n` (binary write mode applies to command output too).
-!! the Python debug driver (`src/ti.awr1843aopevm.driver.debug.py`) still opens two ports and no longer works with this firmware. `tools/test_single_uart.py` is the working reference.
+!! the Python debug driver (`tools/awr1843_drv_test/src/ti.awr1843aopevm.driver.debug.py`) still opens two ports and no longer works with this firmware. `tools/awr1843_drv_test/tools/test_single_uart.py` is the working reference.
 
 
 <the cable>
@@ -54,7 +54,7 @@ Ask the user first which host is on the far end of the cable: a 3.3 V USB-UART a
 3. Measure J7 pin 1 to pin 5 with nothing else connected. It should idle at ~3.3 V. Anything near 1.8 V or 5 V: stop, don't connect the ESP.
 4. Sanity check: `version` on the CP2105 port (`...-if00-port0`) must now get NO reply, because S1.1 ON moves the UART away from the CP2105. If it still answers, S1.1 isn't ON.
 5. Connect pin 1 → host RX, pin 2 → host TX, GND → GND.
-6. USB-UART adapter host: `cd awr1843_drv_test && .venv/bin/python tools/test_single_uart.py /dev/ttyUSBx 921600` (use 892857 if the adapter supports it exactly).
+6. USB-UART adapter host: `cd tools/awr1843_drv_test && .venv/bin/python tools/test_single_uart.py /dev/ttyUSBx 921600` (use 892857 if the adapter supports it exactly).
    ESP32-C3 host: the firmware driver isn't written yet. Either port the same sequence (version → config → sensorStart → count frames → sensorStop → version) or use the C3 as a passthrough.
 7. Compare with the baseline below. A pass = every row matches.
 
@@ -81,9 +81,9 @@ Ask the user first which host is on the far end of the cable: a 3.3 V USB-UART a
 
 
 <recovery: reflash>
-Use `tools/flash_mmwave.py`. It drives UniFlash's own mmWave gen1 flasher (`~/ti/uniflash_9.7.1/deskdb/content/TICloudAgent/linux/ccs_base/mmWave/gen1/mmWaveProgFlash.py`). The UniFlash `dslite.sh` CLI needs a GUI-exported `.ccxml`, so it isn't used.
+Use `tools/awr1843_drv_test/tools/flash_mmwave.py`. It drives UniFlash's own mmWave gen1 flasher (`~/ti/uniflash_9.7.1/deskdb/content/TICloudAgent/linux/ccs_base/mmWave/gen1/mmWaveProgFlash.py`). The UniFlash `dslite.sh` CLI needs a GUI-exported `.ccxml`, so it isn't used.
 1. Switches: S1.1 OFF, S3 ON, then press SW2.
-2. Run `python3 tools/flash_mmwave.py flash <if00 port> ~/ti/backup/<image>.bin` immediately. Run `check` OR `flash`, not both: the bootloader only answers the first connect after each reset, so another SW2 press is needed between runs.
+2. Run `python3 tools/awr1843_drv_test/tools/flash_mmwave.py flash <if00 port> ~/ti/backup/<image>.bin` immediately. Run `check` OR `flash`, not both: the bootloader only answers the first connect after each reset, so another SW2 press is needed between runs.
 3. Success ends with `SUCCESS: META_IMAGE1 written to SFLASH`. Then S3 OFF, press SW2.
 
 Rebuilding: `bash -c 'cd ~/ti/mmwave_sdk_03_06_02_00-LTS/packages/scripts/unix && source ./setenv.sh && cd ../../ti/demo/xwr18xx/mmw && make mmwAOPDemo'`. This needs `mono`, and setenv.sh is already set to awr18xx / DOWNLOAD_FROM_CCS=no.

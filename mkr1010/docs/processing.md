@@ -2,7 +2,7 @@ Owner: @lilleole
 
 Processing layer. Takes one radar frame and identifies subject type, distance and speed.
 
-look at `../radar_data_approx_test/radar_data_aprox.py`. `parse`, `calc_frame` and `calc_delta_speed` need to be ported; the `Client` socket and `main` are PC scaffolding.
+look at `../tools/radar_data_aprox.py`. `parse`, `calc_frame` and `calc_delta_speed` need to be ported; the `Client` socket and `main` are PC scaffolding.
 
 input: one complete AWR1843AOPEVM frame (TI mmWave SDK 3.x format, header + TLVs), see `../../../misc/docs/awr1843aopevm-uart-spec.md`
 output: subject type, distance, speed, handed to the supervisor for the display

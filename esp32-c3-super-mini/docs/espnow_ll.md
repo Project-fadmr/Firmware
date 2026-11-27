@@ -21,3 +21,5 @@ ESP-NOW v1, so the Arduino MKR WiFi 1010 (NINA-W102) can receive without IDF >= 
 <packet format>
 Each packet: 3-byte header [frame_seq (uint8, +1 per frame, wraps 255->0), packet_index (0-based), packet_count], then up to 247 B payload (packets <= 250 B).
 LR only, so the receiver must also run in LR mode. TX power defaults to 8.5 dBm.
+
+Wire format shared with the MKR side, including field offsets: `../../docs/espnow_protocol.md`.

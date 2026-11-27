@@ -1,7 +1,7 @@
 # ESP-NOW blink example (MKR side)
 
 Reference example: the ESP32-C3 SuperMini broadcasts a 1-byte ESP-NOW message at 1 Hz, the MKR WiFi 1010 blinks `LED_BUILTIN` once per message.
-Sender lives in `../../esp32-c3-super-mini/espnow_blink_example/c3_sender/`.
+Sender lives in `../../../esp32-c3-super-mini/examples/espnow_blink_example/c3_sender/`.
 Verified on hardware 2026-11-20: 10 blinks in 10 s.
 
 ## How the MKR receives ESP-NOW
@@ -34,7 +34,7 @@ Toolchain: arduino-cli, esp32:esp32 core 4.0.0, arduino:samd 1.8.14, WiFiNINA li
 3. Flash the SAMD bridge:
    `arduino-cli compile --upload -p /dev/ttyACM0 --fqbn arduino:samd:mkrwifi1010 mkr_bridge`
 4. Flash the C3 sender:
-   `arduino-cli compile --upload -p /dev/ttyACM1 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc ../../esp32-c3-super-mini/espnow_blink_example/c3_sender`
+   `arduino-cli compile --upload -p /dev/ttyACM1 --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc ../../../esp32-c3-super-mini/examples/espnow_blink_example/c3_sender`
 
 Ports are as enumerated on the dev machine; check with `arduino-cli board list`.
 
