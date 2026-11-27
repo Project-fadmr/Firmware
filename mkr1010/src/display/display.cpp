@@ -1,6 +1,8 @@
 // the Adafruit_NeoPixel library is C++ so the libary is two
 #include "display.h"
 #include <Adafruit_NeoPixel.h>
+#include <bsp.h>
+#include <espnow_drv.h>
 
 #define W 32
 #define H 8
@@ -35,7 +37,7 @@ static const uint16_t DIGITS[10][8] = {
     {0x0E,0x11,0x11,0x11,0x0F,0x01,0x11,0x0E}  // 9
 };
 
-static Adafruit_NeoPixel strip(W * H, 4, NEO_GRB + NEO_KHZ800);
+static Adafruit_NeoPixel strip(W * H, BSP_PIN_LED_DATA, NEO_GRB + NEO_KHZ800);
 
 // Column-major zigzag, LED 0 bottom-left: even columns run bottom-to-top, odd top-to-bottom. y=0 is the top row.
 static uint16_t xy(uint8_t x, uint8_t y) {
@@ -55,15 +57,14 @@ static void draw(uint8_t x0, uint8_t w, const uint16_t *rows, uint32_t color) {
                 strip.setPixelColor(xy(x0 + x, y), color);
 }
 
-void sm_begin(uint8_t dataPin, uint8_t brightness) {
-    strip.setPin(dataPin);
+void sm_begin(uint8_t brightness) {
     strip.begin();
     strip.setBrightness(brightness);
     strip.clear();
-    strip.show();
+    sm_show();
 }
 
-void sm_show(void)  { strip.show(); }
+void sm_show(void)  { espnow_drv_hold(); strip.show(); espnow_drv_release(); }
 void sm_clear(void) { strip.clear(); }
 
 void sm_status(Status s) {

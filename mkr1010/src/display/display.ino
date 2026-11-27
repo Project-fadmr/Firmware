@@ -2,7 +2,7 @@
 #include "display.h"
  
 void setup() {
-    sm_begin(8, 22);             // data pin, brightness
+    sm_begin(22);                 // brightness
  
     sm_status(STATUS_GREEN);
     sm_value(1.3);                // shows 1,3   (10 shows "10")

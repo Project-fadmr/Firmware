@@ -152,6 +152,13 @@ int radar_calc_mean(const radar_frame_t *f, radar_stats_t *out) {
     return 0;
 }
 
+void radar_to_vehicle(const radar_stats_t *p, float mount_deg, float *lateral, float *longitudinal) {
+    float t = mount_deg * (3.14159265f / 180.0f);
+    float c = cosf(t), s = sinf(t);
+    *lateral      = p->x * c + p->y * s;
+    *longitudinal = p->y * c - p->x * s;
+}
+
 radar_stats_t radar_calc_delta(const radar_stats_t *prev, const radar_stats_t *cur) {
     radar_stats_t d = {
         fabsf(cur->x - prev->x), fabsf(cur->y - prev->y),

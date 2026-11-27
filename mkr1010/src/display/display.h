@@ -13,7 +13,7 @@ typedef enum { DIR_UP, DIR_DOWN } Direction;
 #define SM_WHITE  0xFDFFFC
 
 
-void sm_begin(uint8_t dataPin, uint8_t brightness);
+void sm_begin(uint8_t brightness);
 void sm_show(void);
 void sm_clear(void);
 

@@ -61,6 +61,10 @@ int radar_calc_mean(const radar_frame_t *f, radar_stats_t *out);
 /* Absolute change between two stats (calc_delta_speed in the Python version). */
 radar_stats_t radar_calc_delta(const radar_stats_t *prev, const radar_stats_t *cur);
 
+/* Point (radar frame, x = sideways, y = boresight) rotated into the vehicle frame.
+ * mount_deg: angle from vehicle forward to radar boresight, positive toward +lateral. z and doppler ignored. */
+void radar_to_vehicle(const radar_stats_t *p, float mount_deg, float *lateral, float *longitudinal);
+
 #ifdef __cplusplus
 }
 #endif
